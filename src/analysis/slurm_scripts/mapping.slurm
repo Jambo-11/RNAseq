@@ -7,35 +7,26 @@
 #SBATCH --cpus-per-task 6                                  
 #SBATCH --mail-user philipp.graber@students.unibe.ch            
 #SBATCH --mail-type ALL                        
-#SBATCH --array=1-100%10
-
-REF_DIR="/data/courses/rnaseq/lncRNAs/Project1/references"
-OUT_DIR="/data/courses/rnaseq/lncRNAs/Project1/users/pgraber/gen/analysis/output"
-
-echo This is array task number $SLURM_ARRAY_TASK_ID
+#SBATCH --array=1-24%12
 
 # Make sure that the results directory exists
 mkdir -p ./gen/analysis/output/mapping
 
+REF_DIR="/data/courses/rnaseq/lncRNAs/Project1/users/pgraber/src/data/reference"
+GENCODE_INDEX_DIR="/data/courses/rnaseq/lncRNAs/Project1/users/pgraber/src/data/hisat2_index/gencode"
+OUT_DIR="/data/courses/rnaseq/lncRNAs/Project1/users/pgraber/gen/analysis/output/mapping"
+RAW_DATA_DIR="/data/courses/rnaseq/lncRNAs/Project1/users/pgraber/src/data/raw_data"
+
+echo This is array task number $SLURM_ARRAY_TASK_ID
+
 # Load required modules 
 module add UHTS/Aligner/hisat/2.2.1
 
-# Create variable containing filenames
-cd ./src/data/raw_data/
-FILES=$(find -name "*R1.fastq.gz")
+# Build SLURM array
+FILE_ID=HD${SLURM_ARRAY_TASK_ID}
 
-# get specific file name, assign it to FQ1
-FQ1=${FILES[$SLURM_ARRAY_TASK_ID]}
-
-# edit the file name to refer to mate pair file and assign that name to FQ2 (set global option in sed)
-FQ2=$(echo $FQ1 | sed 's/R1/R2/g')
-
-# create an output file name
-OUT=$(echo $FQ1 | sed 's/.R1.fastq.gz/.sam/g')
-
-#hisat2-build references/GRCh38_latest_genomic.fa genome_index / run hisat2
-
-#hisat2-build ${REF_DIR}/GRCh38_latest_genomic.fa genome_index
-hisat2 -x genome_index -1 ${FQ1} -2 ${FQ2} -S ${OUT_DIR}/mapping/${OUT}
-
-echo Files $FQ1 and $FQ2 were aligned by task number $SLURM_ARRAY_TASK_ID on $(date)
+#hisat2-build src/data/reference/GRCh38.p13.genome.fa ${GENCODE_INDEX_DIR}/genome
+# (use prebuild index from hisat2 website)
+# TruSeq Stranded mRNA libraries: hisat2 option is RF (fr-firststrand: dUTP based methods)
+hisat2 --rna-strandness RF -x ${GENCODE_INDEX_DIR}/genome -1 ${RAW_DATA_DIR}/${FILE_ID}_L1_R1.fastq.gz -2 ${RAW_DATA_DIR}/${FILE_ID}_L1_R2.fastq.gz -S ${OUT_DIR}/${FILE_ID}_L1.sam
+hisat2 --rna-strandness RF -x ${GENCODE_INDEX_DIR}/genome -1 ${RAW_DATA_DIR}/${FILE_ID}_L2_R1.fastq.gz -2 ${RAW_DATA_DIR}/${FILE_ID}_L2_R2.fastq.gz -S ${OUT_DIR}/${FILE_ID}_L2.sam
